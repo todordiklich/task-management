@@ -14,10 +14,10 @@ datasource db {
 
 // Organization Role model
 model OrganizationRole {
-  id          String            @id @default(uuid())
-  name        String            @unique // "Owner", "Admin", "Member"
+  id          Int       @id @default(autoincrement())
+  name        String    @unique // "Owner", "Admin", "Member"
   description String?
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime  @default(now())
 
   // Relations
   memberships UserOrganization[]
@@ -25,11 +25,12 @@ model OrganizationRole {
 
 // User model
 model User {
-  id            String    @id @default(uuid())
+  id            Int       @id @default(autoincrement())
   email         String    @unique
   name          String?
   passwordHash  String
-  avatarUrl     String?
+  role          String    @default("user") // "user", "admin"
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -37,11 +38,26 @@ model User {
   organizations UserOrganization[]
   assignedTasks Task[]
   comments      Comment[]
+  refreshTokens RefreshToken[]
+}
+
+// Refresh Token model for token rotation
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
 }
 
 // Organization model
 model Organization {
-  id          String    @id @default(uuid())
+  id          Int       @id @default(autoincrement())
   name        String
   description String?
   createdAt   DateTime  @default(now())
@@ -54,11 +70,11 @@ model Organization {
 
 // User-Organization pivot table (many-to-many with role)
 model UserOrganization {
-  id String @id @default(uuid())
+  id Int @id @default(autoincrement())
 
-  userId         String
-  organizationId String
-  roleId         String
+  userId         Int
+  organizationId Int
+  roleId         Int
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -69,54 +85,54 @@ model UserOrganization {
 
 // Project model
 model Project {
-  id             String   @id @default(uuid())
+  id             Int       @id @default(autoincrement())
   name           String
   description    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  organizationId String
+  organizationId Int
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   tasks          Task[]
 }
 
 // Task model
 model Task {
-  id          String   @id @default(uuid())
+  id          Int       @id @default(autoincrement())
   title       String
   description String?
-  completed   Boolean  @default(false)
+  completed   Boolean   @default(false)
   dueDate     DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId  String?
-  assignee    User?    @relation(fields: [assigneeId], references: [id])
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  Int?
+  assignee    User?     @relation(fields: [assigneeId], references: [id])
   comments    Comment[]
   tags        TaskTag[]
 }
 
 // Comment model
 model Comment {
-  id        String   @id @default(uuid())
+  id        Int       @id @default(autoincrement())
   content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   // Relations
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    Int
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Tag model
 model Tag {
-  id    String @id @default(uuid())
+  id    Int    @id @default(autoincrement())
   name  String @unique
   color String?
 
@@ -126,9 +142,9 @@ model Tag {
 
 // Task-Tag pivot table (many-to-many)
 model TaskTag {
-  id     String @id @default(uuid())
-  taskId String
-  tagId  String
+  id     Int @id @default(autoincrement())
+  taskId Int
+  tagId  Int
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)

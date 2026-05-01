@@ -1,9 +1,16 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
+import { hashPassword } from '../src/utils/password.js';
+import 'dotenv/config';
 
-const prisma = new PrismaClient();
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Seeding database...');
+  console.log('Seeding database...');
 
   // Clear existing data in correct order (respecting foreign keys)
   await prisma.taskTag.deleteMany();
@@ -28,39 +35,53 @@ async function main() {
     data: { name: 'Member', description: 'Regular member' },
   });
 
-  // 2. Create Users
-  console.log('Creating users...');
+  // 2. Create Users with proper password hashing
+  console.log('Creating users with hashed passwords...');
+  
+  // Hash passwords for test users
+  const testPasswordHash = await hashPassword('Test123!@#');
+  const adminPasswordHash = await hashPassword('Admin123!@#');
+  const alicePasswordHash = await hashPassword('Alice123!@#');
+  const bobPasswordHash = await hashPassword('Bob123!@#');
+  
   const users = await Promise.all([
+    // Test user with known password
+    prisma.user.create({
+      data: {
+        email: 'test@example.com',
+        name: 'Test User',
+        passwordHash: testPasswordHash,
+        role: 'user',
+        isActive: true,
+      },
+    }),
+    // Admin user with known password
+    prisma.user.create({
+      data: {
+        email: 'admin@example.com',
+        name: 'Admin User',
+        passwordHash: adminPasswordHash,
+        role: 'admin',
+        isActive: true,
+      },
+    }),
+    // Additional test users
     prisma.user.create({
       data: {
         email: 'alice@example.com',
         name: 'Alice Johnson',
-        passwordHash: 'hashed_password_1',
-        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
+        passwordHash: alicePasswordHash,
+        role: 'user',
+        isActive: true,
       },
     }),
     prisma.user.create({
       data: {
         email: 'bob@example.com',
         name: 'Bob Smith',
-        passwordHash: 'hashed_password_2',
-        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob',
-      },
-    }),
-    prisma.user.create({
-      data: {
-        email: 'charlie@example.com',
-        name: 'Charlie Brown',
-        passwordHash: 'hashed_password_3',
-        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie',
-      },
-    }),
-    prisma.user.create({
-      data: {
-        email: 'diana@example.com',
-        name: 'Diana Prince',
-        passwordHash: 'hashed_password_4',
-        avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=diana',
+        passwordHash: bobPasswordHash,
+        role: 'user',
+        isActive: true,
       },
     }),
   ]);
@@ -353,23 +374,11 @@ async function main() {
       data: { taskId: tasks[11].id, tagId: tags[4].id },
     }), // documentation
   ]);
-
-  // Summary
-  console.log('\n✅ Seed completed successfully!');
-  console.log(`   - ${await prisma.organizationRole.count()} roles`);
-  console.log(`   - ${await prisma.user.count()} users`);
-  console.log(`   - ${await prisma.organization.count()} organizations`);
-  console.log(`   - ${await prisma.userOrganization.count()} memberships`);
-  console.log(`   - ${await prisma.project.count()} projects`);
-  console.log(`   - ${await prisma.task.count()} tasks`);
-  console.log(`   - ${await prisma.comment.count()} comments`);
-  console.log(`   - ${await prisma.tag.count()} tags`);
-  console.log(`   - ${await prisma.taskTag.count()} task-tag associations`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error('Seed failed:', e);
     process.exit(1);
   })
   .finally(async () => {

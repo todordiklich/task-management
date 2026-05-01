@@ -14,7 +14,6 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "name" TEXT,
     "passwordHash" TEXT NOT NULL,
-    "avatarUrl" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
