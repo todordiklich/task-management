@@ -14,6 +14,12 @@ export async function authenticate(req, res, next) {
   try {
     const decoded = verifyAccessToken(token);
     
+    // Check if token is expired
+    const currentTime = Math.floor(Date.now() / 1000);
+    if (decoded.exp < currentTime) {
+      return res.status(401).json({ error: 'Access token expired' });
+    }
+    
     // Fetch user from database to ensure they exist and are active
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -34,6 +40,12 @@ export async function authenticate(req, res, next) {
 
     if (!user.isActive) {
       return res.status(401).json({ error: 'User account is inactive' });
+    }
+
+    // Check if token is close to expiration and send refresh warning
+    const timeUntilExpiry = (decoded.exp - currentTime) * 1000;
+    if (timeUntilExpiry < 300000) { // 5 minutes warning
+      res.set('X-Token-Refresh-Warning', 'true');
     }
 
     req.user = user;

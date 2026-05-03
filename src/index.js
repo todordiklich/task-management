@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import organizationRoutes from './routes/organizations.js';
 
 const app = express();
 
@@ -16,7 +17,8 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       auth: '/api/v1/auth',
-      users: '/api/v1/users'
+      users: '/api/v1/users',
+      organizations: '/api/v1/organizations'
     }
   });
 });
@@ -31,6 +33,9 @@ app.use('/api/v1/auth', authRoutes);
 
 // Mount users routes
 app.use('/api/v1/users', userRoutes);
+
+// Mount organization routes
+app.use('/api/v1/organizations', organizationRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
