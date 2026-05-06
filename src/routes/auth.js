@@ -1,6 +1,8 @@
 import express from 'express';
+import { PrismaClient } from '@prisma/client';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, getRefreshTokenExpiry } from '../utils/tokens.js';
+import { loginSchema, signupSchema, refreshTokenSchema } from '../utils/validation.js';
 import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -42,7 +44,19 @@ async function generateTokensForUser(userId) {
 // POST /auth/signup - Register new user
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    // Validate request body
+    const validationResult = signupSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const { email, password, name } = validationResult.data;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -84,11 +98,19 @@ router.post('/signup', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    // Validate request body
+    const validationResult = loginSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
     }
+
+    const { email, password } = validationResult.data;
     
     // Find user
     const user = await prisma.user.findUnique({ where: { email } });
@@ -149,7 +171,19 @@ router.post('/login', async (req, res) => {
 // POST /auth/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    // Validate request body
+    const validationResult = refreshTokenSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const { refreshToken } = validationResult.data;
 
     // Clean up expired tokens periodically
     await cleanupExpiredTokens();
@@ -223,20 +257,9 @@ router.post('/refresh', async (req, res) => {
 // POST /auth/logout - Logout user
 router.post('/logout', authenticate, async (req, res) => {
   try {
-    const { refreshToken } = req.body;
     const userId = req.user?.id;
 
-    // If refresh token provided, delete it
-    if (refreshToken) {
-      await prisma.refreshToken.deleteMany({
-        where: { 
-          token: refreshToken,
-          userId: userId // Only delete tokens belonging to authenticated user
-        },
-      });
-    }
-    
-    // Always delete all user's refresh tokens on logout (complete logout)
+    // Delete all refresh tokens for the authenticated user
     if (userId) {
       await prisma.refreshToken.deleteMany({
         where: { userId },

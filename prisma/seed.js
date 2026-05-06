@@ -26,13 +26,13 @@ async function main() {
   // 1. Create Organization Roles
   console.log('Creating roles...');
   const ownerRole = await prisma.organizationRole.create({
-    data: { name: 'Owner', description: 'Organization owner with full access' },
+    data: { name: 'owner', description: 'Organization owner with full access' },
   });
   const adminRole = await prisma.organizationRole.create({
-    data: { name: 'Admin', description: 'Admin with management access' },
+    data: { name: 'admin', description: 'Admin with management access' },
   });
   const memberRole = await prisma.organizationRole.create({
-    data: { name: 'Member', description: 'Regular member' },
+    data: { name: 'member', description: 'Regular member' },
   });
 
   // 2. Create Users with proper password hashing

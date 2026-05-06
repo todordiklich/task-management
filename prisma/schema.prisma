@@ -15,7 +15,7 @@ datasource db {
 // Organization Role model
 model OrganizationRole {
   id          Int       @id @default(autoincrement())
-  name        String    @unique // "Owner", "Admin", "Member"
+  name        String    @unique // "owner", "admin", "member"
   description String?
   createdAt   DateTime  @default(now())
 
@@ -75,6 +75,7 @@ model UserOrganization {
   userId         Int
   organizationId Int
   roleId         Int
+  inviteToken     String?    // For pending invitations
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -2,6 +2,7 @@ import express from 'express';
 import { randomBytes } from 'crypto';
 import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { createOrganizationSchema, inviteMemberSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -13,7 +14,19 @@ function generateInviteToken() {
 // POST /organizations - Create new organization
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { name, description } = req.body;
+    // Validate request body
+    const validationResult = createOrganizationSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const { name, description } = validationResult.data;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -26,7 +39,7 @@ router.post('/', authenticate, async (req, res) => {
 
     // Get admin role first (outside transaction for better error handling)
     const adminRole = await prisma.organizationRole.findFirst({
-      where: { name: 'Admin' },
+      where: { name: 'admin' },
     });
 
     if (!adminRole) {
@@ -79,9 +92,12 @@ router.get('/', authenticate, async (req, res) => {
       include: {
         organization: true,
         role: true,
+        user: true,
       },
       orderBy: {
-        id: 'desc',
+        organization: {
+          createdAt: 'desc'
+        }
       },
     });
 
@@ -89,6 +105,7 @@ router.get('/', authenticate, async (req, res) => {
     const organizations = userOrganizations.map(uo => ({
       ...uo.organization,
       userRole: uo.role,
+      user: uo.user, // Include user information with role
       membershipId: uo.id,
       joinedAt: uo.organization.createdAt, // Use organization's createdAt as join date
     }));
@@ -107,9 +124,22 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/:id/invite', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, roleName = 'member' } = req.body;
-    const inviterId = req.user?.id;
+    
+    // Validate request body
+    const validationResult = inviteMemberSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
 
+    const { email, roleName = 'Member' } = validationResult.data;
+    const inviterId = req.user?.id;
+    
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
@@ -118,7 +148,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     if (isNaN(organizationId)) {
       return res.status(400).json({ error: 'Invalid organization ID' });
     }
-
+    
     // Check if inviter is admin of the organization
     const inviterMembership = await prisma.userOrganization.findFirst({
       where: {
@@ -127,6 +157,9 @@ router.post('/:id/invite', authenticate, async (req, res) => {
         role: {
           name: 'admin',
         },
+      },
+      include: {
+        role: true,
       },
     });
 
@@ -175,7 +208,6 @@ router.post('/:id/invite', authenticate, async (req, res) => {
 
     // Generate invitation token
     const inviteToken = generateInviteToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     // Create invitation
     const invitation = await prisma.userOrganization.create({
@@ -184,25 +216,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
         organizationId,
         roleId: role.id,
         inviteToken,
-        inviteExpiresAt: expiresAt,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-        role: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
+      }});
 
     res.status(201).json({
       message: 'Invitation sent successfully',
@@ -212,7 +226,6 @@ router.post('/:id/invite', authenticate, async (req, res) => {
         role: invitation.role,
         organization: invitation.organization,
         inviteToken,
-        expiresAt,
       },
     });
   } catch (error) {
@@ -233,22 +246,10 @@ router.post('/accept/:token', async (req, res) => {
     const invitation = await prisma.userOrganization.findFirst({
       where: {
         inviteToken: token,
-        joinedAt: null, // Not yet accepted
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-        organization: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        user: true,
+        organization: true,
         role: true,
       },
     });
@@ -257,37 +258,15 @@ router.post('/accept/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invitation not found' });
     }
 
-    // Check if invitation has expired
-    if (invitation.inviteExpiresAt && invitation.inviteExpiresAt < new Date()) {
-      // Delete expired invitation
-      await prisma.userOrganization.delete({
-        where: { id: invitation.id },
-      });
-      return res.status(410).json({ error: 'Invitation has expired' });
-    }
-
     // Accept invitation
     const updatedMembership = await prisma.userOrganization.update({
       where: { id: invitation.id },
       data: {
-        joinedAt: new Date(),
         inviteToken: null,
-        inviteExpiresAt: null,
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-        organization: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        user: true,
+        organization: true,
         role: true,
       },
     });
@@ -317,7 +296,6 @@ router.get('/:id/members', authenticate, async (req, res) => {
       where: {
         userId,
         organizationId,
-        joinedAt: { not: null }, // Only accepted members
       },
     });
 
@@ -329,7 +307,6 @@ router.get('/:id/members', authenticate, async (req, res) => {
     const members = await prisma.userOrganization.findMany({
       where: {
         organizationId,
-        joinedAt: { not: null },
       },
       include: {
         user: {
@@ -340,10 +317,7 @@ router.get('/:id/members', authenticate, async (req, res) => {
           },
         },
         role: true,
-      },
-      orderBy: {
-        joinedAt: 'asc',
-      },
+      }
     });
 
     res.json(members);
