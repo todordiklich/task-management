@@ -23,6 +23,24 @@ export const createOrganizationSchema = z.object({
 });
 
 export const inviteMemberSchema = z.object({
-  email: z.email('Invalid email format'),
+  email: z.string().email('Invalid email format'),
   roleName: z.string().min(2, 'Role name must be at least 2 characters').optional(),
+});
+
+// Project validation schemas
+export const createProjectSchema = z.object({
+  name: z.string().min(2, 'Project name must be at least 2 characters'),
+  description: z.string().optional(),
+  organizationId: z.number().positive('Organization ID must be positive'),
+});
+
+export const updateProjectSchema = z.object({
+  name: z.string().min(2, 'Project name must be at least 2 characters').optional(),
+  description: z.string().optional(),
+});
+
+export const listProjectsSchema = z.object({
+  page: z.coerce.number().positive('Page must be positive').default(1),
+  limit: z.coerce.number().positive('Limit must be positive').max(100).default(10),
+  organizationId: z.coerce.number().positive('Organization ID must be positive').optional(),
 });

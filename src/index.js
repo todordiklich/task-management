@@ -3,6 +3,7 @@ import express from 'express';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import organizationRoutes from './routes/organizations.js';
+import projectRoutes from './routes/projects.js';
 
 const app = express();
 
@@ -18,7 +19,8 @@ app.get('/', (req, res) => {
       health: '/health',
       auth: '/api/v1/auth',
       users: '/api/v1/users',
-      organizations: '/api/v1/organizations'
+      organizations: '/api/v1/organizations',
+      projects: '/api/v1/projects'
     }
   });
 });
@@ -36,6 +38,9 @@ app.use('/api/v1/users', userRoutes);
 
 // Mount organization routes
 app.use('/api/v1/organizations', organizationRoutes);
+
+// Mount project routes
+app.use('/api/v1/projects', projectRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
