@@ -75,3 +75,13 @@ export const listTasksSchema = z.object({
   completed: z.boolean().optional(),
   dueDate: z.enum(['overdue', 'due_today', 'due_soon', 'due_later']).optional(),
 });
+
+// Comment validation schemas
+export const createCommentSchema = z.object({
+  content: z.string().min(1, 'Comment content cannot be empty').max(1000, 'Comment too long'),
+  taskId: z.number().positive('Task ID must be positive'),
+});
+
+export const updateCommentSchema = z.object({
+  content: z.string().min(1, 'Comment content cannot be empty').max(1000, 'Comment too long'),
+});

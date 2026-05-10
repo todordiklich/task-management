@@ -5,6 +5,7 @@ import userRoutes from './routes/users.js';
 import organizationRoutes from './routes/organizations.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
+import commentRoutes from './routes/comments.js';
 
 const app = express();
 
@@ -22,7 +23,8 @@ app.get('/', (req, res) => {
       users: '/api/v1/users',
       organizations: '/api/v1/organizations',
       projects: '/api/v1/projects',
-      tasks: '/api/v1/tasks'
+      tasks: '/api/v1/tasks',
+      comments: '/api/v1/comments'
     }
   });
 });
@@ -46,6 +48,9 @@ app.use('/api/v1/projects', projectRoutes);
 
 // Mount task routes
 app.use('/api/v1/tasks', taskRoutes);
+
+// Mount comment routes
+app.use('/api/v1/comments', commentRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
