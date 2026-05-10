@@ -44,3 +44,34 @@ export const listProjectsSchema = z.object({
   limit: z.coerce.number().positive('Limit must be positive').max(100).default(10),
   organizationId: z.coerce.number().positive('Organization ID must be positive').optional(),
 });
+
+// Task validation schemas
+export const createTaskSchema = z.object({
+  title: z.string().min(2, 'Task title must be at least 2 characters'),
+  description: z.string().optional(),
+  projectId: z.number().positive('Project ID must be positive'),
+  assigneeId: z.number().positive('Assignee ID must be positive').optional(),
+  dueDate: z.iso.datetime({ message: 'Invalid datetime format' }).optional(),
+  completed: z.boolean().default(false),
+});
+
+export const updateTaskSchema = z.object({
+  title: z.string().min(2, 'Task title must be at least 2 characters').optional(),
+  description: z.string().optional(),
+  assigneeId: z.number().positive('Assignee ID must be positive').optional(),
+  dueDate: z.iso.datetime({ message: 'Invalid datetime format' }).optional(),
+  completed: z.boolean(),
+});
+
+export const updateTaskStatusSchema = z.object({
+  completed: z.boolean(),
+});
+
+export const listTasksSchema = z.object({
+  page: z.coerce.number().positive('Page must be positive').default(1),
+  limit: z.coerce.number().positive('Limit must be positive').max(100).default(10),
+  projectId: z.coerce.number().positive('Project ID must be positive').optional(),
+  assigneeId: z.coerce.number().positive('Assignee ID must be positive').optional(),
+  completed: z.boolean().optional(),
+  dueDate: z.enum(['overdue', 'due_today', 'due_soon', 'due_later']).optional(),
+});

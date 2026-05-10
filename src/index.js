@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import organizationRoutes from './routes/organizations.js';
 import projectRoutes from './routes/projects.js';
+import taskRoutes from './routes/tasks.js';
 
 const app = express();
 
@@ -20,7 +21,8 @@ app.get('/', (req, res) => {
       auth: '/api/v1/auth',
       users: '/api/v1/users',
       organizations: '/api/v1/organizations',
-      projects: '/api/v1/projects'
+      projects: '/api/v1/projects',
+      tasks: '/api/v1/tasks'
     }
   });
 });
@@ -41,6 +43,9 @@ app.use('/api/v1/organizations', organizationRoutes);
 
 // Mount project routes
 app.use('/api/v1/projects', projectRoutes);
+
+// Mount task routes
+app.use('/api/v1/tasks', taskRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
