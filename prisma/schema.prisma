@@ -39,6 +39,7 @@ model User {
   assignedTasks Task[]
   comments      Comment[]
   refreshTokens RefreshToken[]
+  auditLogs    AuditLog[]
 }
 
 // Refresh Token model for token rotation
@@ -151,4 +152,18 @@ model TaskTag {
   tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, tagId])
+}
+
+// Audit Log model
+model AuditLog {
+  id        Int       @id @default(autoincrement())
+  action    String
+  entityType String
+  entityId  Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

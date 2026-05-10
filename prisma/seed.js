@@ -374,6 +374,228 @@ async function main() {
       data: { taskId: tasks[11].id, tagId: tags[4].id },
     }), // documentation
   ]);
+
+  // 10. Create Audit Log entries
+  console.log('Creating audit log entries...');
+  await Promise.all([
+    // User creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'user',
+        entityId: users[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'user',
+        entityId: users[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'user',
+        entityId: users[2].id,
+        userId: users[2].id,
+      },
+    }),
+    // Organization creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'organization',
+        entityId: org1.id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'organization',
+        entityId: org2.id,
+        userId: users[1].id,
+      },
+    }),
+    // Project creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'project',
+        entityId: project1.id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'project',
+        entityId: project2.id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'project',
+        entityId: project3.id,
+        userId: users[1].id,
+      },
+    }),
+    // Task creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[2].id,
+        userId: users[2].id,
+      },
+    }),
+    // Tag creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'tag',
+        entityId: tags[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'tag',
+        entityId: tags[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'tag',
+        entityId: tags[2].id,
+        userId: users[2].id,
+      },
+    }),
+    // Comment creation
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'comment',
+        entityId: 1,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'comment',
+        entityId: 2,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'comment',
+        entityId: 3,
+        userId: users[2].id,
+      },
+    }),
+    // Task-Tag associations
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'create',
+        entityType: 'task',
+        entityId: tasks[2].id,
+        userId: users[2].id,
+      },
+    }),
+    // Login actions
+    prisma.auditLog.create({
+      data: {
+        action: 'login',
+        entityType: 'user',
+        entityId: users[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'login',
+        entityType: 'user',
+        entityId: users[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'login',
+        entityType: 'user',
+        entityId: users[2].id,
+        userId: users[2].id,
+      },
+    }),
+    // Logout actions
+    prisma.auditLog.create({
+      data: {
+        action: 'logout',
+        entityType: 'user',
+        entityId: users[0].id,
+        userId: users[0].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'logout',
+        entityType: 'user',
+        entityId: users[1].id,
+        userId: users[1].id,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        action: 'logout',
+        entityType: 'user',
+        entityId: users[2].id,
+        userId: users[2].id,
+      },
+    }),
+  ])
 }
 
 main()

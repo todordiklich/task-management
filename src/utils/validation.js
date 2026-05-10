@@ -101,3 +101,15 @@ export const listTagsSchema = z.object({
 export const attachTagSchema = z.object({
   tagId: z.number().positive('Tag ID must be positive'),
 });
+
+// Audit log validation schemas
+export const listAuditLogsSchema = z.object({
+  page: z.coerce.number().positive('Page must be positive').default(1),
+  limit: z.coerce.number().positive('Limit must be positive').max(100).default(50),
+  userId: z.coerce.number().positive('User ID must be positive').optional(),
+  action: z.enum(['create', 'update', 'delete', 'login', 'logout']).optional(),
+  entityType: z.enum(['user', 'organization', 'project', 'task', 'comment', 'tag']).optional(),
+  entityId: z.coerce.number().positive('Entity ID must be positive').optional(),
+  startDate: z.iso.datetime({ message: 'Invalid start date format' }).optional(),
+  endDate: z.iso.datetime({ message: 'Invalid end date format' }).optional(),
+});

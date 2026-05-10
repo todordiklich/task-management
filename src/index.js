@@ -7,6 +7,7 @@ import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import commentRoutes from './routes/comments.js';
 import tagRoutes from './routes/tags.js';
+import auditLogRoutes from './routes/audit-logs.js';
 
 const app = express();
 
@@ -26,7 +27,8 @@ app.get('/', (req, res) => {
       projects: '/api/v1/projects',
       tasks: '/api/v1/tasks',
       comments: '/api/v1/comments',
-      tags: '/api/v1/tags'
+      tags: '/api/v1/tags',
+      'audit-logs': '/api/v1/audit-logs'
     }
   });
 });
@@ -56,6 +58,9 @@ app.use('/api/v1/comments', commentRoutes);
 
 // Mount tag routes
 app.use('/api/v1/tags', tagRoutes);
+
+// Mount audit log routes
+app.use('/api/v1/audit-logs', auditLogRoutes);
 
 // Start server
 const PORT = process.env.PORT || 3000;
