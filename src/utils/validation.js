@@ -85,3 +85,19 @@ export const createCommentSchema = z.object({
 export const updateCommentSchema = z.object({
   content: z.string().min(1, 'Comment content cannot be empty').max(1000, 'Comment too long'),
 });
+
+// Tag validation schemas
+export const createTagSchema = z.object({
+  name: z.string().min(1, 'Tag name cannot be empty').max(50, 'Tag name too long'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format. Use hex color like #FF0000').optional(),
+});
+
+export const listTagsSchema = z.object({
+  page: z.coerce.number().positive('Page must be positive').default(1),
+  limit: z.coerce.number().positive('Limit must be positive').max(100).default(50),
+  name: z.string().optional(),
+});
+
+export const attachTagSchema = z.object({
+  tagId: z.number().positive('Tag ID must be positive'),
+});
