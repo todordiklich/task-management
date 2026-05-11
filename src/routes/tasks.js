@@ -146,7 +146,6 @@ router.get('/', authenticate, async (req, res) => {
       // If no project specified, get tasks from all user's projects
       const userProjects = await prisma.project.findMany({
         where: {
-          id: projectId,
           organization: {
             users: {
               some: {

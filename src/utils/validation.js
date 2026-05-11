@@ -102,6 +102,15 @@ export const attachTagSchema = z.object({
   tagId: z.number().positive('Tag ID must be positive'),
 });
 
+// User validation schemas
+export const updateUserSchema = z.object({
+  email: z.email('Invalid email format').optional(),
+  name: z.string().min(1, 'Name cannot be empty').max(255, 'Name too long').optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+  role: z.enum(['user', 'admin']).optional(),
+  isActive: z.boolean().optional(),
+});
+
 // Audit log validation schemas
 export const listAuditLogsSchema = z.object({
   page: z.coerce.number().positive('Page must be positive').default(1),

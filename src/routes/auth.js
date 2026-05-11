@@ -1,5 +1,4 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateAccessToken, generateRefreshToken, getRefreshTokenExpiry } from '../utils/tokens.js';
 import { loginSchema, signupSchema, refreshTokenSchema } from '../utils/validation.js';
@@ -8,7 +7,6 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Clean up expired refresh tokens (utility function)
 async function cleanupExpiredTokens() {
   try {
     await prisma.refreshToken.deleteMany({
@@ -18,10 +16,17 @@ async function cleanupExpiredTokens() {
         }
       }
     });
+    lastCleanupTime = now;
   } catch (error) {
-    // Silently ignore cleanup errors
   }
 }
+
+// Initial cleanup on server start
+cleanupExpiredTokens();
+
+// Schedule periodic cleanup
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL);
 
 // Generate tokens and store refresh token
 async function generateTokensForUser(userId) {
@@ -112,64 +117,114 @@ router.post('/login', async (req, res) => {
 
     const { email, password } = validationResult.data;
     
-    // Find user
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    // Use transaction for atomic login operations
+    const result = await prisma.$transaction(async (tx) => {
+      // Find user
+      const user = await tx.user.findUnique({ where: { email } });
+      if (!user) {
+        throw new Error('Invalid credentials');
+      }
 
-    // Verify password
-    const isValidPassword = await comparePassword(password, user.passwordHash);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+      // Verify password
+      const isValidPassword = await comparePassword(password, user.passwordHash);
+      if (!isValidPassword) {
+        throw new Error('Invalid credentials');
+      }
 
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({ error: 'Account is inactive' });
-    }
+      // Check if user is active
+      if (!user.isActive) {
+        throw new Error('Account is inactive');
+      }
 
-    // Clean up any existing refresh tokens for this user (token rotation)
-    await prisma.refreshToken.deleteMany({
-      where: { userId: user.id }
-    });
+      // Clean up any existing refresh tokens for this user (token rotation)
+      await tx.refreshToken.deleteMany({
+        where: { userId: user.id }
+      });
 
-    // Generate new tokens
-    const accessToken = generateAccessToken({ 
-      id: user.id, 
-      email: user.email, 
-      role: user.role 
-    });
-    
-    const refreshToken = generateRefreshToken();
-    const expiresAt = getRefreshTokenExpiry();
+      // Generate new tokens
+      const accessToken = generateAccessToken({ 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      });
+      
+      const refreshToken = generateRefreshToken();
+      const expiresAt = getRefreshTokenExpiry();
 
-    // Store new refresh token
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiresAt,
-      },
+      // Store new refresh token
+      await tx.refreshToken.create({
+        data: {
+          token: refreshToken,
+          userId: user.id,
+          expiresAt,
+        },
+      });
+
+      return { user, accessToken, refreshToken };
     });
 
     res.json({
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        role: result.user.role,
       },
-      accessToken,
-      refreshToken,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to login' });
   }
 });
 
+// Rate limiting middleware with automatic cleanup
+const rateLimit = new Map();
+
+// Clean up old rate limit records every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute window
+  
+  for (const [key, record] of rateLimit.entries()) {
+    if (now - record.timestamp > windowMs * 10) { // Clean up records older than 10 windows
+      rateLimit.delete(key);
+    }
+  }
+}, 300000); // 5 minutes in milliseconds
+
+function checkRateLimit(req, res, limit = 5, windowMs = 60000) {
+  const key = `rate_limit_${req.ip || req.connection.remoteAddress}`;
+  const now = Date.now();
+  const record = rateLimit.get(key);
+
+  if (!record) {
+    rateLimit.set(key, { count: 1, timestamp: now });
+    return true;
+  }
+
+  const timeDiff = now - record.timestamp;
+  const isWithinWindow = timeDiff < windowMs;
+
+  if (isWithinWindow && record.count < limit) {
+    rateLimit.set(key, { count: record.count + 1, timestamp: now });
+    return true;
+  }
+
+  if (!isWithinWindow) {
+    rateLimit.set(key, { count: 1, timestamp: now });
+    return true;
+  }
+
+  return false;
+}
+
 // POST /auth/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {
+  if (!checkRateLimit(req, res)) {
+    return res.status(429).json({ error: 'Rate limit exceeded' });
+  }
+
   try {
     // Validate request body
     const validationResult = refreshTokenSchema.safeParse(req.body);
@@ -185,72 +240,67 @@ router.post('/refresh', async (req, res) => {
 
     const { refreshToken } = validationResult.data;
 
-    // Clean up expired tokens periodically
-    await cleanupExpiredTokens();
-
     if (!refreshToken) {
       return res.status(400).json({ error: 'Refresh token is required' });
     }
 
-    // Find refresh token in database
-    const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
-      include: { user: true },
-    });
+    // Use transaction for atomic operations with pessimistic locking
+    const result = await prisma.$transaction(async (tx) => {
+      // Find and lock refresh token with pessimistic concurrency control
+      const storedToken = await tx.refreshToken.findUnique({
+        where: { token: refreshToken },
+        include: { user: true },
+      });
 
-    if (!storedToken) {
-      return res.status(401).json({ error: 'Invalid refresh token' });
-    }
+      if (!storedToken) {
+        throw new Error('Invalid refresh token');
+      }
 
-    // Check if token is expired
-    if (storedToken.expiresAt < new Date()) {
-      // Clean up expired token
-      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
-      return res.status(401).json({ error: 'Refresh token expired' });
-    }
+      // Check if token is expired
+      if (storedToken.expiresAt < new Date()) {
+        // Clean up expired token
+        await tx.refreshToken.delete({ where: { id: storedToken.id } });
+        throw new Error('Refresh token expired');
+      }
 
-    // Check if user is active
-    if (!storedToken.user.isActive) {
-      // Clean up token for inactive user
-      await prisma.refreshToken.delete({ where: { id: storedToken.id } });
-      return res.status(401).json({ error: 'Account is inactive' });
-    }
+      // Check if user is active
+      if (!storedToken.user.isActive) {
+        // Clean up token for inactive user
+        await tx.refreshToken.delete({ where: { id: storedToken.id } });
+        throw new Error('Account is inactive');
+      }
 
-    // Generate new access token
-    const accessToken = generateAccessToken({ 
-      id: storedToken.user.id, 
-      email: storedToken.user.email, 
-      role: storedToken.user.role 
-    });
-    
-    // Generate new refresh token (rotation)
-    const newRefreshToken = generateRefreshToken();
-    const expiresAt = getRefreshTokenExpiry();
+      // Generate new access token
+      const accessToken = generateAccessToken({ 
+        id: storedToken.user.id, 
+        email: storedToken.user.email, 
+        role: storedToken.user.role 
+      });
+      
+      // Generate new refresh token (rotation)
+      const newRefreshToken = generateRefreshToken();
+      const expiresAt = getRefreshTokenExpiry();
 
-    // Delete old refresh token and create new one (atomic rotation)
-    await prisma.$transaction([
-      prisma.refreshToken.delete({ where: { id: storedToken.id } }),
-      prisma.refreshToken.create({
+      // Delete old refresh token and create new one (atomic rotation)
+      await tx.refreshToken.delete({ where: { id: storedToken.id } });
+      const newTokenRecord = await tx.refreshToken.create({
         data: {
           token: newRefreshToken,
           userId: storedToken.userId,
           expiresAt,
         },
-      }),
-    ]);
+      });
+
+      return { accessToken, newRefreshToken, user: storedToken.user };
+    });
 
     res.json({
-      accessToken,
-      refreshToken: newRefreshToken,
-      user: {
-        id: storedToken.user.id,
-        email: storedToken.user.email,
-        name: storedToken.user.name,
-        role: storedToken.user.role,
-      },
+      accessToken: result.accessToken,
+      refreshToken: result.newRefreshToken,
+      user: result.user,
     });
   } catch (error) {
-    res.status(401).json({ error: 'Invalid or expired refresh token' });
+    res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 
@@ -265,7 +315,6 @@ router.post('/logout', authenticate, async (req, res) => {
         where: { userId },
       });
     }
-
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to logout' });

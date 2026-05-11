@@ -2,6 +2,7 @@ import express from 'express';
 import { hashPassword } from '../utils/password.js';
 import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { updateUserSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -60,7 +61,19 @@ router.patch('/:id', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: Can only update own profile' });
     }
 
-    const { email, name, password, role, isActive } = req.body;
+    // Validate request body
+    const validationResult = updateUserSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+    }
+
+    const { email, name, password, role, isActive } = validationResult.data;
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { id: targetId } });

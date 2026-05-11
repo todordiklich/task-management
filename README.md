@@ -204,8 +204,7 @@ src/
 ├── utils/
 │   ├── password.js    # Password hashing utilities
 │   └── tokens.js      # JWT token utilities
-├── validation/
-│   └── auth.js        # Input validation schemas
+│   └── validation     # Input validation schemas
 └── index.js           # Main application entry
 ```
 
