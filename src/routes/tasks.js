@@ -1,12 +1,7 @@
 import express from 'express';
-import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
-import { 
-  createTaskSchema, 
-  updateTaskSchema, 
-  updateTaskStatusSchema, 
-  listTasksSchema 
-} from '../utils/validation.js';
+import prisma from '../config/prisma.js';
+import { createTaskSchema, updateTaskSchema, updateTaskStatusSchema, listTasksSchema } from '../utils/validation.js';
 
 const router = express.Router();
 

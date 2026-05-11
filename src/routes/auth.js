@@ -19,6 +19,7 @@ async function cleanupExpiredTokens() {
     });
     lastCleanupTime = now;
   } catch (error) {
+    logger.warn('Failed to cleanup expired tokens', { error: error.message });
   }
 }
 
@@ -311,6 +312,7 @@ router.post('/refresh', async (req, res) => {
       user: result.user,
     });
   } catch (error) {
+    logger.error('Refresh token failed', { error: error.message, ip: req.ip });
     res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
