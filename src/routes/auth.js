@@ -4,6 +4,7 @@ import { generateAccessToken, generateRefreshToken, getRefreshTokenExpiry } from
 import { loginSchema, signupSchema, refreshTokenSchema } from '../utils/validation.js';
 import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ async function generateTokensForUser(userId) {
 // POST /auth/signup - Register new user
 router.post('/signup', async (req, res) => {
   try {
+    logger.info('User signup attempt', { ip: req.ip, userAgent: req.get('User-Agent') });
     // Validate request body
     const validationResult = signupSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -91,18 +93,22 @@ router.post('/signup', async (req, res) => {
     // Generate tokens
     const { accessToken, refreshToken } = await generateTokensForUser(user.id);
 
+    logger.info('User signup successful', { userId: user.id, email: user.email });
     res.status(201).json({
       user,
       accessToken,
       refreshToken,
     });
   } catch (error) {
+    logger.error('Signup failed', { error: error.message, ip: req.ip });
     res.status(500).json({ error: 'Failed to signup' });
   }
 });
 
 router.post('/login', async (req, res) => {
   try {
+    logger.info('User login attempt', { ip: req.ip, email: req.body?.email, userAgent: req.get('User-Agent') });
+    
     // Validate request body
     const validationResult = loginSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -122,18 +128,21 @@ router.post('/login', async (req, res) => {
       // Find user
       const user = await tx.user.findUnique({ where: { email } });
       if (!user) {
-        throw new Error('Invalid credentials');
+        logger.security('Login failed - user not found', { email, ip: req.ip });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       // Verify password
       const isValidPassword = await comparePassword(password, user.passwordHash);
       if (!isValidPassword) {
-        throw new Error('Invalid credentials');
+        logger.security('Login failed - invalid password', { email, ip: req.ip });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       // Check if user is active
       if (!user.isActive) {
-        throw new Error('Account is inactive');
+        logger.security('Login failed - inactive account', { email, ip: req.ip });
+        return res.status(401).json({ error: 'Account is inactive' });
       }
 
       // Clean up any existing refresh tokens for this user (token rotation)
@@ -163,6 +172,7 @@ router.post('/login', async (req, res) => {
       return { user, accessToken, refreshToken };
     });
 
+    logger.info('User login successful', { userId: result.user.id, email: result.user.email, ip: req.ip });
     res.json({
       user: {
         id: result.user.id,
@@ -174,6 +184,7 @@ router.post('/login', async (req, res) => {
       refreshToken: result.refreshToken,
     });
   } catch (error) {
+    logger.error('Login failed', { error: error.message, ip: req.ip });
     res.status(500).json({ error: 'Failed to login' });
   }
 });
@@ -309,14 +320,19 @@ router.post('/logout', authenticate, async (req, res) => {
   try {
     const userId = req.user?.id;
 
+    logger.info('User logout attempt', { userId, ip: req.ip });
+
     // Delete all refresh tokens for the authenticated user
     if (userId) {
       await prisma.refreshToken.deleteMany({
         where: { userId },
       });
     }
+    
+    logger.info('User logout successful', { userId, ip: req.ip });
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
+    logger.error('Logout failed', { error: error.message, userId: req.user?.id, ip: req.ip });
     res.status(500).json({ error: 'Failed to logout' });
   }
 });

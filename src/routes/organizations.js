@@ -112,7 +112,6 @@ router.get('/', authenticate, async (req, res) => {
 
     res.json(organizations);
   } catch (error) {
-    console.error('Error fetching organizations:', error);
     res.status(500).json({ 
       error: 'Failed to fetch organizations',
       details: error.message 

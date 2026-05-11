@@ -86,7 +86,6 @@ router.post('/', authenticate, async (req, res) => {
 
     res.status(201).json(comment);
   } catch (error) {
-    console.error('Error creating comment:', error);
     res.status(500).json({ 
       error: 'Failed to create comment',
       details: error.message 
@@ -161,7 +160,6 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
-    console.error('Error deleting comment:', error);
     res.status(500).json({ 
       error: 'Failed to delete comment',
       details: error.message 

@@ -86,7 +86,6 @@ router.post('/', authenticate, async (req, res) => {
 
     res.status(201).json(tag);
   } catch (error) {
-    console.error('Error creating tag:', error);
     res.status(500).json({ 
       error: 'Failed to create tag',
       details: error.message 
@@ -157,7 +156,6 @@ router.get('/', authenticate, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching tags:', error);
     res.status(500).json({ 
       error: 'Failed to fetch tags',
       details: error.message 
@@ -255,7 +253,6 @@ router.post('/tasks/:taskId/tags', authenticate, async (req, res) => {
       taskTag,
     });
   } catch (error) {
-    console.error('Error attaching tag to task:', error);
     res.status(500).json({ 
       error: 'Failed to attach tag to task',
       details: error.message 
@@ -318,7 +315,6 @@ router.delete('/tasks/:taskId/tags/:tagId', authenticate, async (req, res) => {
       detachedTag: taskTag.tag,
     });
   } catch (error) {
-    console.error('Error detaching tag from task:', error);
     res.status(500).json({ 
       error: 'Failed to detach tag from task',
       details: error.message 

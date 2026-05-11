@@ -1,0 +1,11 @@
+{"timestamp":"2026-05-11T16:55:59.368Z","level":"info","message":"User login attempt","ip":"::1","email":"admin@example.com","userAgent":"PostmanRuntime/7.29.2"}
+{"timestamp":"2026-05-11T16:56:00.221Z","level":"info","message":"User login successful","userId":2,"email":"admin@example.com","ip":"::1"}
+{"timestamp":"2026-05-11T16:57:38.414Z","level":"info","message":"User login attempt","ip":"::1","email":"admin@example.com","userAgent":"PostmanRuntime/7.29.2"}
+{"timestamp":"2026-05-11T16:57:39.244Z","level":"info","message":"User login successful","userId":2,"email":"admin@example.com","ip":"::1"}
+{"timestamp":"2026-05-11T16:57:40.371Z","level":"info","message":"User login attempt","ip":"::1","email":"admin@example.com","userAgent":"PostmanRuntime/7.29.2"}
+{"timestamp":"2026-05-11T16:57:41.113Z","level":"info","message":"User login successful","userId":2,"email":"admin@example.com","ip":"::1"}
+{"timestamp":"2026-05-11T16:57:42.034Z","level":"info","message":"User login attempt","ip":"::1","email":"admin@example.com","userAgent":"PostmanRuntime/7.29.2"}
+{"timestamp":"2026-05-11T16:57:42.798Z","level":"info","message":"User login successful","userId":2,"email":"admin@example.com","ip":"::1"}
+{"timestamp":"2026-05-11T16:57:43.720Z","level":"info","message":"User login attempt","ip":"::1","email":"admin@example.com","userAgent":"PostmanRuntime/7.29.2"}
+{"timestamp":"2026-05-11T16:57:44.457Z","level":"info","message":"User login successful","userId":2,"email":"admin@example.com","ip":"::1"}
+{"timestamp":"2026-05-11T17:14:03.470Z","level":"info","message":"Application shutting down gracefully"}

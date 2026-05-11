@@ -1,0 +1,7 @@
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":200,"responseTime":"871ms","timestamp":"2026-05-11T16:56:00.229Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":200,"responseTime":"835ms","timestamp":"2026-05-11T16:57:39.246Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":200,"responseTime":"743ms","timestamp":"2026-05-11T16:57:41.114Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":200,"responseTime":"765ms","timestamp":"2026-05-11T16:57:42.799Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":200,"responseTime":"740ms","timestamp":"2026-05-11T16:57:44.459Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":429,"responseTime":"2ms","timestamp":"2026-05-11T16:57:45.366Z"}
+{"method":"POST","url":"/api/v1/auth/login","ip":"::1","userAgent":"PostmanRuntime/7.29.2","statusCode":429,"responseTime":"4ms","timestamp":"2026-05-11T17:07:57.719Z"}

@@ -60,7 +60,6 @@ router.post('/', authenticate, async (req, res) => {
 
     res.status(201).json(project);
   } catch (error) {
-    console.error('Error creating project:', error);
     res.status(500).json({ 
       error: 'Failed to create project',
       details: error.message 
@@ -151,7 +150,6 @@ router.get('/', authenticate, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching projects:', error);
     res.status(500).json({ 
       error: 'Failed to fetch projects',
       details: error.message 
@@ -214,7 +212,6 @@ router.get('/:id', authenticate, async (req, res) => {
 
     res.json(project);
   } catch (error) {
-    console.error('Error fetching project:', error);
     res.status(500).json({ 
       error: 'Failed to fetch project',
       details: error.message 
@@ -281,7 +278,6 @@ router.put('/:id', authenticate, async (req, res) => {
 
     res.json(updatedProject);
   } catch (error) {
-    console.error('Error updating project:', error);
     res.status(500).json({ 
       error: 'Failed to update project',
       details: error.message 
@@ -322,7 +318,6 @@ router.delete('/:id', authenticate, async (req, res) => {
 
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
-    console.error('Error deleting project:', error);
     res.status(500).json({ 
       error: 'Failed to delete project',
       details: error.message 
