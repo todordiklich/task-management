@@ -22,8 +22,7 @@ function loadConfig() {
     return envSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      error.errors.forEach((err) => {
-      });
+      console.error('Configuration validation errors:', error.errors);
     }
     throw new Error('Invalid environment configuration');
   }

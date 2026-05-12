@@ -35,6 +35,12 @@ router.post('/', authenticate, async (req, res) => {
     const { name, description, organizationId } = validationResult.data;
     const userId = req.user?.id;
 
+    // Check if organization exists
+    const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
     // Check if user has access to the organization
     const hasAccess = await checkOrganizationAccess(userId, organizationId);
     if (!hasAccess) {
@@ -219,8 +225,8 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// PUT /projects/:id - Update project
-router.put('/:id', authenticate, async (req, res) => {
+// PATCH /projects/:id - Update project
+router.patch('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const projectId = parseInt(id);

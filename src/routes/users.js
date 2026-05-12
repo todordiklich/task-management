@@ -64,7 +64,7 @@ router.patch('/:id', authenticate, async (req, res) => {
     // Validate request body
     const validationResult = updateUserSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid request data',
         details: validationResult.error.issues.map(issue => ({
           field: issue.path.join('.'),
@@ -74,6 +74,10 @@ router.patch('/:id', authenticate, async (req, res) => {
     }
 
     const { email, name, password, role, isActive } = validationResult.data;
+
+    if (email === undefined && name === undefined && password === undefined && role === undefined && isActive === undefined) {
+      return res.status(400).json({ error: 'Invalid request data', details: [{ field: '', message: 'At least one field is required' }] });
+    }
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { id: targetId } });

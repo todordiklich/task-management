@@ -3,12 +3,12 @@ import { z } from 'zod';
 // Auth validation schemas
 export const loginSchema = z.object({
   email: z.email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(500, 'Password too long'),
 });
 
 export const signupSchema = z.object({
   email: z.email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters').max(500, 'Password too long'),
   name: z.string().min(2, 'Name must be at least 2 characters').optional(),
 });
 
@@ -18,7 +18,7 @@ export const refreshTokenSchema = z.object({
 
 // Organization validation schemas
 export const createOrganizationSchema = z.object({
-  name: z.string().min(2, 'Organization name must be at least 2 characters'),
+  name: z.string().min(2, 'Organization name must be at least 2 characters').max(255, 'Organization name too long'),
   description: z.string().optional(),
 });
 
@@ -29,7 +29,7 @@ export const inviteMemberSchema = z.object({
 
 // Project validation schemas
 export const createProjectSchema = z.object({
-  name: z.string().min(2, 'Project name must be at least 2 characters'),
+  name: z.string().min(2, 'Project name must be at least 2 characters').max(255, 'Project name too long'),
   description: z.string().optional(),
   organizationId: z.number().positive('Organization ID must be positive'),
 });
@@ -105,7 +105,7 @@ export const attachTagSchema = z.object({
 // User validation schemas
 export const updateUserSchema = z.object({
   email: z.email('Invalid email format').optional(),
-  name: z.string().min(1, 'Name cannot be empty').max(255, 'Name too long').optional(),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(255, 'Name too long').optional(),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   role: z.enum(['user', 'admin']).optional(),
   isActive: z.boolean().optional(),

@@ -354,6 +354,48 @@ router.post('/accept/:token', authenticate, async (req, res) => {
   }
 });
 
+// POST /organizations/accept-invitation - Accept invitation via body token
+router.post('/accept-invitation', authenticate, async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Invalid request data', details: [{ field: 'token', message: 'Token is required' }] });
+    }
+
+    const invitation = await prisma.invitation.findFirst({ where: { token } });
+
+    if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
+      return res.status(404).json({ error: 'Invalid or expired invitation' });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user?.id },
+      select: { email: true },
+    });
+
+    if (currentUser?.email !== invitation.email) {
+      return res.status(403).json({ error: 'This invitation is not for your email' });
+    }
+
+    const membership = await prisma.$transaction(async (tx) => {
+      const newMembership = await tx.userOrganization.create({
+        data: {
+          userId: req.user?.id,
+          organizationId: invitation.organizationId,
+          roleId: invitation.roleId,
+        },
+      });
+      await tx.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } });
+      return newMembership;
+    });
+
+    res.json({ message: 'Invitation accepted successfully', membership });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to accept invitation' });
+  }
+});
+
 // GET /organizations/:id/members - List organization members
 router.get('/:id/members', authenticate, async (req, res) => {
   try {
@@ -365,33 +407,27 @@ router.get('/:id/members', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid organization ID' });
     }
 
+    // Check if organization exists
+    const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
     // Check if user is a member
     const userMembership = await prisma.userOrganization.findFirst({
-      where: {
-        userId,
-        organizationId,
-      },
+      where: { userId, organizationId },
     });
 
     if (!userMembership) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Get all members
     const members = await prisma.userOrganization.findMany({
-      where: {
-        organizationId,
-      },
+      where: { organizationId },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-        role: true,
-      }
+        user: { select: { id: true, email: true, name: true } },
+        role: { select: { id: true, name: true } },
+      },
     });
 
     res.json(members);

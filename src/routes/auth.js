@@ -28,7 +28,7 @@ cleanupExpiredTokens();
 
 // Schedule periodic cleanup
 const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
-setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL);
+setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL).unref();
 
 // Generate tokens and store refresh token
 async function generateTokensForUser(userId) {
@@ -203,7 +203,7 @@ setInterval(() => {
       rateLimit.delete(key);
     }
   }
-}, 300000); // 5 minutes in milliseconds
+}, 300000).unref(); // 5 minutes in milliseconds
 
 function checkRateLimit(req, res, limit = 5, windowMs = 60000) {
   const key = `rate_limit_${req.ip || req.connection.remoteAddress}`;
@@ -233,10 +233,6 @@ function checkRateLimit(req, res, limit = 5, windowMs = 60000) {
 
 // POST /auth/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {
-  if (!checkRateLimit(req, res)) {
-    return res.status(429).json({ error: 'Rate limit exceeded' });
-  }
-
   try {
     // Validate request body
     const validationResult = refreshTokenSchema.safeParse(req.body);
