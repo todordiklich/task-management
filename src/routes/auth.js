@@ -25,24 +25,6 @@ cleanupExpiredTokens();
 const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL).unref();
 
-// Generate tokens and store refresh token
-async function generateTokensForUser(userId) {
-  const accessToken = generateAccessToken({ id: userId });
-  const refreshToken = generateRefreshToken();
-  const expiresAt = getRefreshTokenExpiry();
-
-  // Store refresh token in database
-  await prisma.refreshToken.create({
-    data: {
-      token: refreshToken,
-      userId,
-      expiresAt,
-    },
-  });
-
-  return { accessToken, refreshToken };
-}
-
 // POST /auth/signup - Register new user
 router.post('/signup', async (req, res) => {
   try {
@@ -61,40 +43,29 @@ router.post('/signup', async (req, res) => {
 
     const { email, password, name } = validationResult.data;
 
-    // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        passwordHash,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
+    // Atomically create user and refresh token so neither exists without the other
+    const { user, accessToken, refreshToken } = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email, name, passwordHash },
+        select: { id: true, email: true, name: true, role: true, createdAt: true },
+      });
+      const accessToken = generateAccessToken({ id: user.id });
+      const refreshToken = generateRefreshToken();
+      await tx.refreshToken.create({
+        data: { token: refreshToken, userId: user.id, expiresAt: getRefreshTokenExpiry() },
+      });
+      return { user, accessToken, refreshToken };
     });
-
-    // Generate tokens
-    const { accessToken, refreshToken } = await generateTokensForUser(user.id);
 
     logger.info('User signup successful', { userId: user.id, email: user.email });
-    res.status(201).json({
-      user,
-      accessToken,
-      refreshToken,
-    });
+    res.status(201).json({ user, accessToken, refreshToken });
   } catch (error) {
     logger.error('Signup failed', { error: error.message, ip: req.ip });
     res.status(500).json({ error: 'Failed to signup' });
@@ -186,10 +157,6 @@ router.post('/refresh', async (req, res) => {
     }
 
     const { refreshToken } = validationResult.data;
-
-    if (!refreshToken) {
-      return res.status(400).json({ error: 'Refresh token is required' });
-    }
 
     // Use transaction for atomic operations with pessimistic locking
     const result = await prisma.$transaction(async (tx) => {

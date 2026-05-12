@@ -27,17 +27,8 @@ router.post('/', authenticate, async (req, res) => {
     }
 
     const { name, description } = validationResult.data;
-    const userId = req.user?.id;
+    const userId = req.user.id;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User ID is required' });
-    }
-
-    if (!name) {
-      return res.status(400).json({ error: 'Organization name is required' });
-    }
-
-    // Get admin role first (outside transaction for better error handling)
     const adminRole = await prisma.organizationRole.findFirst({
       where: { name: 'admin' },
     });
@@ -105,17 +96,14 @@ router.get('/', authenticate, async (req, res) => {
     const organizations = userOrganizations.map(uo => ({
       ...uo.organization,
       userRole: uo.role,
-      user: uo.user, // Include user information with role
+      user: uo.user,
       membershipId: uo.id,
-      joinedAt: uo.organization.createdAt, // Use organization's createdAt as join date
+      joinedAt: uo.createdAt,
     }));
 
     res.json(organizations);
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Failed to fetch organizations',
-      details: error.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch organizations' });
   }
 });
 
@@ -262,88 +250,6 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to send invitation' });
-  }
-});
-
-// POST /organizations/accept/:token - Accept organization invitation
-router.post('/accept/:token', authenticate, async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    if (!token) {
-      return res.status(400).json({ error: 'Invitation token is required' });
-    }
-
-    // Find invitation by token
-    const invitation = await prisma.invitation.findFirst({
-      where: {
-        token,
-        status: 'pending',
-        expiresAt: {
-          gte: new Date(), // Check if invitation hasn't expired
-        },
-      },
-      include: {
-        organization: true,
-        role: true,
-        inviter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (!invitation) {
-      return res.status(404).json({ error: 'Invitation not found or expired' });
-    }
-
-    // Verify that current user is the invited user
-    const currentUser = await prisma.user.findUnique({
-      where: { id: req.user?.id },
-      select: { email: true },
-    });
-
-    if (currentUser?.email !== invitation.email) {
-      return res.status(403).json({ error: 'This invitation is not for you' });
-    }
-
-    // Check if user is already a member
-    const existingMembership = await prisma.userOrganization.findFirst({
-      where: {
-        userId: req.user?.id,
-        organizationId: invitation.organizationId,
-      },
-    });
-
-    if (existingMembership) {
-      return res.status(409).json({ error: 'You are already a member of this organization' });
-    }
-
-    const membership = await prisma.$transaction(async (tx) => {
-      const newMembership = await tx.userOrganization.create({
-        data: {
-          userId: req.user?.id,
-          organizationId: invitation.organizationId,
-          roleId: invitation.roleId,
-        },
-        include: { user: true, organization: true, role: true },
-      });
-      await tx.invitation.update({
-        where: { id: invitation.id },
-        data: { status: 'accepted' },
-      });
-      return newMembership;
-    });
-
-    res.json({
-      message: 'Invitation accepted successfully',
-      membership,
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to accept invitation' });
   }
 });
 

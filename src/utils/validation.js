@@ -60,7 +60,7 @@ export const updateTaskSchema = z.object({
   description: z.string().optional(),
   assigneeId: z.number().positive('Assignee ID must be positive').optional(),
   dueDate: z.iso.datetime({ message: 'Invalid datetime format' }).optional(),
-  completed: z.boolean(),
+  completed: z.boolean().optional(),
 });
 
 export const updateTaskStatusSchema = z.object({
