@@ -5,6 +5,78 @@ import { listAuditLogsSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Audit Logs
+ *   description: Audit log access
+ */
+
+/**
+ * @swagger
+ * /audit-logs:
+ *   get:
+ *     summary: List audit logs (filtered to accessible organizations)
+ *     tags: [Audit Logs]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *           enum: [create, update, delete, login, logout]
+ *       - in: query
+ *         name: entityType
+ *         schema:
+ *           type: string
+ *           enum: [user, organization, project, task, comment, tag]
+ *       - in: query
+ *         name: entityId
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *     responses:
+ *       200:
+ *         description: Paginated audit logs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 auditLogs:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/', authenticate, async (req, res) => {
   try {
     // Validate query parameters

@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import organizationRoutes from './routes/organizations.js';
@@ -30,6 +32,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(requestLogger);
 app.use(generalRateLimit);
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => res.json(swaggerSpec));
 
 // Root route
 app.get('/', (req, res) => {

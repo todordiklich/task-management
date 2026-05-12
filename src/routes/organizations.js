@@ -6,12 +6,49 @@ import { createOrganizationSchema, inviteMemberSchema } from '../utils/validatio
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Organizations
+ *   description: Organization and membership management
+ */
+
 // Generate invitation token
 function generateInviteToken() {
   return randomBytes(32).toString('hex');
 }
 
-// POST /organizations - Create new organization
+/**
+ * @swagger
+ * /organizations:
+ *   post:
+ *     summary: Create a new organization
+ *     tags: [Organizations]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Organization created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Organization'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/', authenticate, async (req, res) => {
   try {
     // Validate request body
@@ -57,7 +94,24 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /organizations - List user's organizations
+/**
+ * @swagger
+ * /organizations:
+ *   get:
+ *     summary: List organizations the current user belongs to
+ *     tags: [Organizations]
+ *     responses:
+ *       200:
+ *         description: List of organizations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Organization'
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/', authenticate, async (req, res) => {
   try {
     const { id: userId } = req.user;
@@ -93,7 +147,44 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// POST /organizations/:id/invite - Invite member to organization
+/**
+ * @swagger
+ * /organizations/{id}/invite:
+ *   post:
+ *     summary: Invite a user to an organization (admin only)
+ *     tags: [Organizations]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               roleName:
+ *                 type: string
+ *                 default: Member
+ *     responses:
+ *       201:
+ *         description: Invitation sent
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       403:
+ *         description: Only admins can invite members
+ *       404:
+ *         description: Organization or user not found
+ *       409:
+ *         description: User already a member or invitation already pending
+ */
 router.post('/:id/invite', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
@@ -226,7 +317,32 @@ router.post('/:id/invite', authenticate, async (req, res) => {
   }
 });
 
-// POST /organizations/accept-invitation - Accept invitation via body token
+/**
+ * @swagger
+ * /organizations/accept-invitation:
+ *   post:
+ *     summary: Accept an organization invitation
+ *     tags: [Organizations]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token]
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Invitation accepted
+ *       400:
+ *         description: Missing token
+ *       403:
+ *         description: Invitation is for a different email
+ *       404:
+ *         description: Invalid or expired invitation
+ */
 router.post('/accept-invitation', authenticate, async (req, res) => {
   try {
     const { token } = req.body;
@@ -268,7 +384,28 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
   }
 });
 
-// GET /organizations/:id/members - List organization members
+/**
+ * @swagger
+ * /organizations/{id}/members:
+ *   get:
+ *     summary: List members of an organization
+ *     tags: [Organizations]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of members
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Not a member of this organization
+ *       404:
+ *         description: Organization not found
+ */
 router.get('/:id/members', authenticate, async (req, res) => {
   try {
     const { id } = req.params;

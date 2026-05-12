@@ -25,7 +25,55 @@ cleanupExpiredTokens();
 const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 setInterval(cleanupExpiredTokens, CLEANUP_INTERVAL).unref();
 
-// POST /auth/signup - Register new user
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication endpoints
+ */
+
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               name:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       409:
+ *         description: Email already exists
+ */
 router.post('/signup', async (req, res) => {
   try {
     logger.info('User signup attempt', { ip: req.ip, userAgent: req.get('User-Agent') });
@@ -72,6 +120,45 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Log in with email and password
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Invalid credentials or inactive account
+ */
 router.post('/login', async (req, res) => {
   try {
     // Validate request body before logging to avoid capturing unvalidated input
@@ -141,7 +228,42 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /auth/refresh - Refresh access token
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Rotate refresh token and get a new access token
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: New tokens issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                 refreshToken:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       500:
+ *         description: Invalid or expired refresh token
+ */
 router.post('/refresh', async (req, res) => {
   try {
     // Validate request body
@@ -205,7 +327,18 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// POST /auth/logout - Logout user
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Invalidate all refresh tokens for the current user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/logout', authenticate, async (req, res) => {
   try {
     const { id: userId } = req.user;

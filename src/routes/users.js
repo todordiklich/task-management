@@ -6,7 +6,39 @@ import { updateUserSchema } from '../utils/validation.js';
 
 const router = express.Router();
 
-// GET /users/:id - Get user details (admin only or own profile)
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User profile management
+ */
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   get:
+ *     summary: Get a user profile (own profile or admin only)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ */
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const targetId = parseInt(req.params.id);
@@ -45,7 +77,58 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// PATCH /users/:id - Update user profile (admin or own profile)
+/**
+ * @swagger
+ * /users/{id}:
+ *   patch:
+ *     summary: Update a user profile (own profile or admin only)
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *               role:
+ *                 type: string
+ *                 enum: [user, admin]
+ *                 description: Admin only
+ *               isActive:
+ *                 type: boolean
+ *                 description: Admin only
+ *     responses:
+ *       200:
+ *         description: Updated user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       409:
+ *         description: Email already taken
+ */
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     const targetId = parseInt(req.params.id);

@@ -5,6 +5,13 @@ import { createProjectSchema, updateProjectSchema, listProjectsSchema } from '..
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * tags:
+ *   name: Projects
+ *   description: Project management
+ */
+
 // Helper function to check if user has access to organization
 async function checkOrganizationAccess(userId, organizationId) {
   const membership = await prisma.userOrganization.findFirst({
@@ -17,7 +24,41 @@ async function checkOrganizationAccess(userId, organizationId) {
   return membership !== null;
 }
 
-// POST /projects - Create new project
+/**
+ * @swagger
+ * /projects:
+ *   post:
+ *     summary: Create a new project
+ *     tags: [Projects]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, organizationId]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               description:
+ *                 type: string
+ *               organizationId:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Project created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Project'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       403:
+ *         description: Not a member of the organization
+ *       404:
+ *         description: Organization not found
+ */
 router.post('/', authenticate, async (req, res) => {
   try {
     // Validate request body
@@ -73,7 +114,45 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /projects - List projects with pagination
+/**
+ * @swagger
+ * /projects:
+ *   get:
+ *     summary: List projects with pagination
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *           maximum: 100
+ *       - in: query
+ *         name: organizationId
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Paginated list of projects
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 projects:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Project'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ */
 router.get('/', authenticate, async (req, res) => {
   try {
     // Validate query parameters
@@ -163,7 +242,30 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /projects/:id - Get single project
+/**
+ * @swagger
+ * /projects/{id}:
+ *   get:
+ *     summary: Get a project by ID
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Project details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Project'
+ *       403:
+ *         description: Not a member of the project's organization
+ *       404:
+ *         description: Project not found
+ */
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
@@ -225,7 +327,44 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// PATCH /projects/:id - Update project
+/**
+ * @swagger
+ * /projects/{id}:
+ *   patch:
+ *     summary: Update a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Updated project
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Project'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       403:
+ *         description: Not a member of the project's organization
+ *       404:
+ *         description: Project not found
+ */
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
@@ -291,7 +430,26 @@ router.patch('/:id', authenticate, async (req, res) => {
   }
 });
 
-// DELETE /projects/:id - Delete project
+/**
+ * @swagger
+ * /projects/{id}:
+ *   delete:
+ *     summary: Delete a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Project deleted
+ *       403:
+ *         description: Not a member of the project's organization
+ *       404:
+ *         description: Project not found
+ */
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
