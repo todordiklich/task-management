@@ -103,12 +103,10 @@ router.post('/signup', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    logger.info('User login attempt', { ip: req.ip, email: req.body?.email, userAgent: req.get('User-Agent') });
-    
-    // Validate request body
+    // Validate request body before logging to avoid capturing unvalidated input
     const validationResult = loginSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid request data',
         details: validationResult.error.issues.map(issue => ({
           field: issue.path.join('.'),
@@ -118,6 +116,7 @@ router.post('/login', async (req, res) => {
     }
 
     const { email, password } = validationResult.data;
+    logger.info('User login attempt', { ip: req.ip, email, userAgent: req.get('User-Agent') });
     
     // Use transaction for atomic login operations
     const result = await prisma.$transaction(async (tx) => {
@@ -170,47 +169,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Failed to login' });
   }
 });
-
-// Rate limiting middleware with automatic cleanup
-const rateLimit = new Map();
-
-// Clean up old rate limit records every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  const windowMs = 60000; // 1 minute window
-  
-  for (const [key, record] of rateLimit.entries()) {
-    if (now - record.timestamp > windowMs * 10) { // Clean up records older than 10 windows
-      rateLimit.delete(key);
-    }
-  }
-}, 300000).unref(); // 5 minutes in milliseconds
-
-function checkRateLimit(req, res, limit = 5, windowMs = 60000) {
-  const key = `rate_limit_${req.ip || req.connection.remoteAddress}`;
-  const now = Date.now();
-  const record = rateLimit.get(key);
-
-  if (!record) {
-    rateLimit.set(key, { count: 1, timestamp: now });
-    return true;
-  }
-
-  const timeDiff = now - record.timestamp;
-  const isWithinWindow = timeDiff < windowMs;
-
-  if (isWithinWindow && record.count < limit) {
-    rateLimit.set(key, { count: record.count + 1, timestamp: now });
-    return true;
-  }
-
-  if (!isWithinWindow) {
-    rateLimit.set(key, { count: 1, timestamp: now });
-    return true;
-  }
-
-  return false;
-}
 
 // POST /auth/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {

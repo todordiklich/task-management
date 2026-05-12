@@ -251,7 +251,6 @@ router.post('/:id/invite', authenticate, async (req, res) => {
       message: 'Invitation sent successfully',
       invitation: {
         id: invitation.id,
-        token: invitation.token,
         organization: invitation.organization,
         role: invitation.role,
         invitedUser: {

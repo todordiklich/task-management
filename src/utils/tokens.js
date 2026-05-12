@@ -66,11 +66,3 @@ export const verifyAccessToken = (token) => {
   }
 };
 
-/**
- * Decode JWT token without verification (for debugging)
- * @param {string} token - JWT token to decode
- * @returns {Object} Decoded token payload
- */
-export const decodeToken = (token) => {
-  return jwt.decode(token);
-};
