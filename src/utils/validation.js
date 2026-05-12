@@ -23,7 +23,7 @@ export const createOrganizationSchema = z.object({
 });
 
 export const inviteMemberSchema = z.object({
-  email: z.string().email('Invalid email format'),
+  email: z.email('Invalid email format'),
   roleName: z.string().min(2, 'Role name must be at least 2 characters').optional(),
 });
 

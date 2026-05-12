@@ -11,13 +11,8 @@ const router = express.Router();
 async function cleanupExpiredTokens() {
   try {
     await prisma.refreshToken.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date()
-        }
-      }
+      where: { expiresAt: { lt: new Date() } },
     });
-    lastCleanupTime = now;
   } catch (error) {
     logger.warn('Failed to cleanup expired tokens', { error: error.message });
   }
@@ -126,48 +121,31 @@ router.post('/login', async (req, res) => {
     
     // Use transaction for atomic login operations
     const result = await prisma.$transaction(async (tx) => {
-      // Find user
       const user = await tx.user.findUnique({ where: { email } });
       if (!user) {
         logger.security('Login failed - user not found', { email, ip: req.ip });
-        return res.status(401).json({ error: 'Invalid credentials' });
+        throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
       }
 
-      // Verify password
       const isValidPassword = await comparePassword(password, user.passwordHash);
       if (!isValidPassword) {
         logger.security('Login failed - invalid password', { email, ip: req.ip });
-        return res.status(401).json({ error: 'Invalid credentials' });
+        throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
       }
 
-      // Check if user is active
       if (!user.isActive) {
         logger.security('Login failed - inactive account', { email, ip: req.ip });
-        return res.status(401).json({ error: 'Account is inactive' });
+        throw Object.assign(new Error('Account is inactive'), { statusCode: 401 });
       }
 
-      // Clean up any existing refresh tokens for this user (token rotation)
-      await tx.refreshToken.deleteMany({
-        where: { userId: user.id }
-      });
+      await tx.refreshToken.deleteMany({ where: { userId: user.id } });
 
-      // Generate new tokens
-      const accessToken = generateAccessToken({ 
-        id: user.id, 
-        email: user.email, 
-        role: user.role 
-      });
-      
+      const accessToken = generateAccessToken({ id: user.id, email: user.email, role: user.role });
       const refreshToken = generateRefreshToken();
       const expiresAt = getRefreshTokenExpiry();
 
-      // Store new refresh token
       await tx.refreshToken.create({
-        data: {
-          token: refreshToken,
-          userId: user.id,
-          expiresAt,
-        },
+        data: { token: refreshToken, userId: user.id, expiresAt },
       });
 
       return { user, accessToken, refreshToken };
@@ -185,6 +163,9 @@ router.post('/login', async (req, res) => {
       refreshToken: result.refreshToken,
     });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     logger.error('Login failed', { error: error.message, ip: req.ip });
     res.status(500).json({ error: 'Failed to login' });
   }

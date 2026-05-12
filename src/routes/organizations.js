@@ -323,31 +323,25 @@ router.post('/accept/:token', authenticate, async (req, res) => {
       return res.status(409).json({ error: 'You are already a member of this organization' });
     }
 
-    // Create userOrganization entry (actual membership)
-    const membership = await prisma.userOrganization.create({
-      data: {
-        userId: req.user?.id,
-        organizationId: invitation.organizationId,
-        roleId: invitation.roleId,
-      },
-      include: {
-        user: true,
-        organization: true,
-        role: true,
-      },
-    });
-
-    // Update invitation status to accepted
-    await prisma.invitation.update({
-      where: { id: invitation.id },
-      data: {
-        status: 'accepted',
-      },
+    const membership = await prisma.$transaction(async (tx) => {
+      const newMembership = await tx.userOrganization.create({
+        data: {
+          userId: req.user?.id,
+          organizationId: invitation.organizationId,
+          roleId: invitation.roleId,
+        },
+        include: { user: true, organization: true, role: true },
+      });
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'accepted' },
+      });
+      return newMembership;
     });
 
     res.json({
       message: 'Invitation accepted successfully',
-      membership: membership,
+      membership,
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to accept invitation' });
