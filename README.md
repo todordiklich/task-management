@@ -1,232 +1,250 @@
 # Task Management API
 
-A comprehensive task management API with authentication and authorization features.
+A REST API for managing tasks, projects, and organizations, with JWT authentication and role-based access control.
 
-## Features
+## Getting Started
 
-### Authentication & Authorization
-- Email/password signup and login
-- Password hashing with bcrypt (12 salt rounds)
-- JWT access tokens (15-minute expiry)
-- Refresh tokens with rotation (7-day expiry)
-- Role-Based Access Control (RBAC)
-- Account activation/deactivation
+### Prerequisites
+- Node.js 18+
+- PostgreSQL
 
-### Security Features
-- Secure password hashing with bcrypt
-- JWT token verification with type checking
-- Refresh token rotation for enhanced security
-- Input validation with Zod schemas
-- Protected routes with middleware
-- User activity tracking
+### Installation
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
+
+3. **Set up the database**
+   ```bash
+   npm run db:push
+   ```
+
+4. **Start the server**
+   ```bash
+   npm run dev
+   ```
+
+The server starts at `http://localhost:3000`.
+
+---
+
+## API Documentation (Swagger)
+
+Interactive documentation is available while the server is running:
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:3000/api-docs` | Swagger UI — browse and test every endpoint |
+| `http://localhost:3000/api-docs.json` | Raw OpenAPI 3.0 spec (JSON) |
+
+### Authenticating in Swagger UI
+
+1. Call `POST /auth/signup` or `POST /auth/login` to get an `accessToken`.
+2. Click the **Authorize** button (🔒) at the top of the page.
+3. Enter `Bearer <your-access-token>` and click **Authorize**.
+4. All subsequent requests will include the token automatically.
+
+---
 
 ## API Endpoints
 
-### Authentication Routes (`/api/v1/auth`)
-- `POST /signup` - Register new user
-- `POST /login` - User login
-- `POST /refresh` - Refresh access token
-- `POST /logout` - User logout
-- `GET /me` - Get current user profile
+Base path: `/api/v1`
 
-### User Routes (`/api/v1/users`)
-- `GET /users/:id` - Get user details (admin only)
-- `PATCH /users/:id` - Update user profile (admin or own profile)
+### Auth — `/auth`
+| Method | Path | Description | Auth required |
+|--------|------|-------------|---------------|
+| POST | `/auth/signup` | Register a new user | No |
+| POST | `/auth/login` | Log in, receive access + refresh tokens | No |
+| POST | `/auth/refresh` | Rotate refresh token, get new access token | No |
+| POST | `/auth/logout` | Invalidate all refresh tokens | Yes |
 
-### Health Check
-- `GET /health` - Server health status
+### Users — `/users`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/users/:id` | Get a user profile (own or admin only) |
+| PATCH | `/users/:id` | Update a user profile (own or admin only) |
 
-## Authentication Flow
+### Organizations — `/organizations`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/organizations` | Create an organization |
+| GET | `/organizations` | List organizations you belong to |
+| POST | `/organizations/:id/invite` | Invite a user (admin only) |
+| POST | `/organizations/accept-invitation` | Accept an invitation |
+| GET | `/organizations/:id/members` | List organization members |
 
-### 1. User Registration
-```bash
-POST /api/v1/auth/signup
-Content-Type: application/json
+### Projects — `/projects`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/projects` | Create a project |
+| GET | `/projects` | List projects (paginated) |
+| GET | `/projects/:id` | Get a project |
+| PATCH | `/projects/:id` | Update a project |
+| DELETE | `/projects/:id` | Delete a project |
 
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!@#",
-  "name": "John Doe"
-}
+### Tasks — `/tasks`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/tasks` | Create a task |
+| GET | `/tasks` | List tasks (paginated, filterable) |
+| GET | `/tasks/:id` | Get a task |
+| PATCH | `/tasks/:id` | Update a task |
+| DELETE | `/tasks/:id` | Delete a task |
+
+### Comments — `/comments`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/comments` | Add a comment to a task |
+| GET | `/comments` | List comments |
+| PATCH | `/comments/:id` | Update a comment |
+| DELETE | `/comments/:id` | Delete a comment |
+
+### Tags — `/tags`
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/tags` | Create a tag |
+| GET | `/tags` | List tags |
+| DELETE | `/tags/:id` | Delete a tag |
+| POST | `/tags/:id/attach` | Attach a tag to a task |
+
+### Audit Logs — `/audit-logs`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/audit-logs` | List audit logs (paginated, filterable) |
+
+---
+
+## Authentication
+
+All protected endpoints require a JWT access token in the `Authorization` header:
+
+```
+Authorization: Bearer <access-token>
 ```
 
-### 2. User Login
-```bash
-POST /api/v1/auth/login
-Content-Type: application/json
+### Token Lifetimes
+| Token | Type | Expiry |
+|-------|------|--------|
+| Access token | JWT | 15 minutes |
+| Refresh token | Random hex | 7 days |
 
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!@#"
-}
+### Example flow
+
+**Sign up**
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "secret123", "name": "Jane"}'
 ```
 
-### 3. Token Refresh
+**Log in**
 ```bash
-POST /api/v1/auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "your-refresh-token-here"
-}
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "secret123"}'
+# → { accessToken, refreshToken, user }
 ```
 
-### 4. Access Protected Routes
+**Call a protected endpoint**
 ```bash
-GET /api/v1/auth/me
-Authorization: Bearer your-access-token-here
+curl http://localhost:3000/api/v1/organizations \
+  -H "Authorization: Bearer <accessToken>"
 ```
 
-## Password Requirements
+**Refresh an expired access token**
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken": "<refreshToken>"}'
+```
 
-- Minimum 8 characters
-- Maximum 128 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one number
-- At least one special character
-
-## Token Management
-
-### Access Token
-- **Type**: JWT
-- **Expiry**: 15 minutes
-- **Usage**: Bearer token in Authorization header
-
-### Refresh Token
-- **Type**: Random hex string
-- **Expiry**: 7 days
-- **Storage**: Database with automatic rotation
-- **Usage**: Request body for token refresh
+---
 
 ## Role-Based Access Control
 
-### User Roles
-- `user` - Standard user access
-- `admin` - Administrative access
+| Role | Capabilities |
+|------|-------------|
+| `user` | Manage own profile, create and access resources within their organizations |
+| `admin` | All user capabilities plus update any user's role and active status |
 
-### Authorization Middleware
 ```javascript
-// Require authentication
-router.get('/protected', authenticate, handler);
-
-// Require specific role
-router.get('/admin-only', authenticate, authorize('admin'), handler);
-
-// Optional authentication
-router.get('/public', optionalAuth, handler);
+router.get('/protected', authenticate, handler);            // any logged-in user
+router.get('/admin-only', authenticate, authorize('admin'), handler); // admins only
 ```
 
-## Database Schema
-
-### Users Table
-- `id` - Primary key
-- `email` - Unique email address
-- `name` - User display name
-- `passwordHash` - Bcrypt hashed password
-- `role` - User role (user/admin)
-- `isActive` - Account status
-- `createdAt` - Registration timestamp
-- `updatedAt` - Last update timestamp
-
-### Refresh Tokens Table
-- `id` - Primary key
-- `token` - Unique refresh token
-- `userId` - Foreign key to users
-- `expiresAt` - Token expiration
-- `createdAt` - Creation timestamp
+---
 
 ## Environment Variables
 
 ```bash
 # Database
-DATABASE_URL=postgresql://username:password@localhost:5432/database
+DATABASE_URL=postgresql://user:password@localhost:5432/taskdb
 
-# JWT Secrets
-JWT_ACCESS_SECRET=your-super-secret-access-key-change-in-production
-JWT_REFRESH_SECRET=your-super-secret-refresh-key-change-in-production
+# JWT
+JWT_ACCESS_SECRET=change-me-in-production
+JWT_REFRESH_SECRET=change-me-in-production
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 
 # Server
 PORT=3000
 NODE_ENV=development
 ```
 
-## Security Best Practices
-
-1. **Password Security**: Uses bcrypt with 12 salt rounds
-2. **Token Security**: Short-lived access tokens with refresh token rotation
-3. **Input Validation**: Comprehensive validation using Zod schemas
-4. **Error Handling**: Consistent error responses without information leakage
-5. **CORS**: Configure appropriately for production
-6. **Rate Limiting**: Implement for production use
-
-## Getting Started
-
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Setup Database**
-   ```bash
-   npm run db:push
-   ```
-
-3. **Set Environment Variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Start Server**
-   ```bash
-   npm run dev
-   ```
+---
 
 ## Development
 
-### Database Commands
-- `npm run db:migrate` - Run database migrations
-- `npm run db:push` - Push schema changes
-- `npm run db:studio` - Open Prisma Studio
-- `npm run db:seed` - Seed database with sample data
+### Commands
+```bash
+npm run dev          # Start server
+npm test             # Run test suite (273 tests)
+npm run db:migrate   # Run database migrations
+npm run db:push      # Push schema changes
+npm run db:studio    # Open Prisma Studio
+npm run db:seed      # Seed sample data
+```
 
 ### Project Structure
 ```
 src/
 ├── config/
-│   ├── index.js      # Environment configuration
-│   └── prisma.js      # Database client
+│   ├── index.js        # Environment config + validation
+│   ├── prisma.js       # Database client
+│   └── swagger.js      # OpenAPI spec definition
 ├── middleware/
-│   └── auth.js        # Authentication & authorization middleware
+│   ├── auth.js         # authenticate / authorize / optionalAuth
+│   └── rateLimit.js    # Rate limiting (5 req/min auth, 100 req/min general)
 ├── routes/
-│   └── auth.js        # Authentication routes
+│   ├── auth.js
+│   ├── users.js
+│   ├── organizations.js
+│   ├── projects.js
+│   ├── tasks.js
+│   ├── comments.js
+│   ├── tags.js
+│   └── audit-logs.js
 ├── utils/
-│   ├── password.js    # Password hashing utilities
-│   └── tokens.js      # JWT token utilities
-│   └── validation     # Input validation schemas
-└── index.js           # Main application entry
+│   ├── logger.js       # Structured logging (files + console)
+│   ├── password.js     # bcrypt helpers
+│   ├── tokens.js       # JWT helpers
+│   └── validation.js   # Zod schemas
+└── index.js            # App entry point
 ```
 
-## Testing
+---
 
-The authentication system includes comprehensive testing for:
-- User registration and login
-- Token generation and refresh
-- Protected route access
-- Input validation
-- Error handling
+## Production Checklist
 
-Run tests with:
-```bash
-npm test
-```
-
-## Production Considerations
-
-1. **Environment Variables**: Use strong, unique secrets
-2. **Database**: Use connection pooling and SSL
-3. **Logging**: Implement structured logging
-4. **Monitoring**: Add health checks and metrics
-5. **Rate Limiting**: Protect against abuse
-6. **HTTPS**: Always use HTTPS in production
+- Set strong, unique values for `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET`
+- Use `DATABASE_URL` with SSL (`?sslmode=require`)
+- Set `NODE_ENV=production`
+- Restrict `ALLOWED_ORIGINS` to your frontend domain
+- Run behind a reverse proxy (nginx) with HTTPS
