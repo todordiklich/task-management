@@ -86,7 +86,6 @@ const options = {
           },
         },
       },
-    },
       responses: {
         ValidationError: {
           description: 'Validation failed',
