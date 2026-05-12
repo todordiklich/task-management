@@ -37,34 +37,20 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(500).json({ error: 'Admin role not found' });
     }
 
-    // Create organization and user-organization relationship in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create organization
-      const organization = await tx.organization.create({
-        data: {
-          name,
-          description,
-        },
+    const organization = await prisma.$transaction(async (tx) => {
+      const org = await tx.organization.create({ data: { name, description } });
+      await tx.userOrganization.create({
+        data: { userId, organizationId: org.id, roleId: adminRole.id },
       });
-
-      // Create user-organization relationship
-      const userOrg = await tx.userOrganization.create({
-        data: {
-          userId,
-          organizationId: organization.id,
-          roleId: adminRole.id,
-        },
-      });
-
-      return { organization, userOrg };
+      return org;
     });
 
     res.status(201).json({
-      ...result.organization,
+      ...organization,
       user: await prisma.user.findUnique({
         where: { id: userId },
-        select: { email: true, name: true }
-      })
+        select: { email: true, name: true },
+      }),
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create organization' });
@@ -74,8 +60,8 @@ router.post('/', authenticate, async (req, res) => {
 // GET /organizations - List user's organizations
 router.get('/', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id;
-    
+    const { id: userId } = req.user;
+
     const userOrganizations = await prisma.userOrganization.findMany({
       where: {
         userId,
@@ -125,11 +111,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     }
 
     const { email, roleName = 'Member' } = validationResult.data;
-    const inviterId = req.user?.id;
-    
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+    const inviterId = req.user.id;
 
     const organizationId = parseInt(id);
     if (isNaN(organizationId)) {
@@ -138,16 +120,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     
     // Check if inviter is admin of the organization
     const inviterMembership = await prisma.userOrganization.findFirst({
-      where: {
-        userId: inviterId,
-        organizationId,
-        role: {
-          name: 'admin',
-        },
-      },
-      include: {
-        role: true,
-      },
+      where: { userId: inviterId, organizationId, role: { name: 'admin' } },
     });
 
     if (!inviterMembership) {
@@ -218,7 +191,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
         email: invitedUser.email,
         organizationId,
         roleId: role.id,
-        inviterId: inviterId,
+        inviterId,
         status: 'pending',
         expiresAt,
       },
@@ -269,7 +242,7 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
     }
 
     const currentUser = await prisma.user.findUnique({
-      where: { id: req.user?.id },
+      where: { id: req.user.id },
       select: { email: true },
     });
 
@@ -280,7 +253,7 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
     const membership = await prisma.$transaction(async (tx) => {
       const newMembership = await tx.userOrganization.create({
         data: {
-          userId: req.user?.id,
+          userId: req.user.id,
           organizationId: invitation.organizationId,
           roleId: invitation.roleId,
         },
@@ -299,7 +272,7 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
 router.get('/:id/members', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const { id: userId } = req.user;
 
     const organizationId = parseInt(id);
     if (isNaN(organizationId)) {

@@ -158,9 +158,7 @@ router.post('/refresh', async (req, res) => {
 
     const { refreshToken } = validationResult.data;
 
-    // Use transaction for atomic operations with pessimistic locking
     const result = await prisma.$transaction(async (tx) => {
-      // Find and lock refresh token with pessimistic concurrency control
       const storedToken = await tx.refreshToken.findUnique({
         where: { token: refreshToken },
         include: { user: true },
@@ -170,39 +168,27 @@ router.post('/refresh', async (req, res) => {
         throw new Error('Invalid refresh token');
       }
 
-      // Check if token is expired
       if (storedToken.expiresAt < new Date()) {
-        // Clean up expired token
         await tx.refreshToken.delete({ where: { id: storedToken.id } });
         throw new Error('Refresh token expired');
       }
 
-      // Check if user is active
       if (!storedToken.user.isActive) {
-        // Clean up token for inactive user
         await tx.refreshToken.delete({ where: { id: storedToken.id } });
         throw new Error('Account is inactive');
       }
 
-      // Generate new access token
-      const accessToken = generateAccessToken({ 
-        id: storedToken.user.id, 
-        email: storedToken.user.email, 
-        role: storedToken.user.role 
+      const accessToken = generateAccessToken({
+        id: storedToken.user.id,
+        email: storedToken.user.email,
+        role: storedToken.user.role,
       });
-      
-      // Generate new refresh token (rotation)
       const newRefreshToken = generateRefreshToken();
       const expiresAt = getRefreshTokenExpiry();
 
-      // Delete old refresh token and create new one (atomic rotation)
       await tx.refreshToken.delete({ where: { id: storedToken.id } });
-      const newTokenRecord = await tx.refreshToken.create({
-        data: {
-          token: newRefreshToken,
-          userId: storedToken.userId,
-          expiresAt,
-        },
+      await tx.refreshToken.create({
+        data: { token: newRefreshToken, userId: storedToken.userId, expiresAt },
       });
 
       return { accessToken, newRefreshToken, user: storedToken.user };
@@ -222,17 +208,12 @@ router.post('/refresh', async (req, res) => {
 // POST /auth/logout - Logout user
 router.post('/logout', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const { id: userId } = req.user;
 
     logger.info('User logout attempt', { userId, ip: req.ip });
 
-    // Delete all refresh tokens for the authenticated user
-    if (userId) {
-      await prisma.refreshToken.deleteMany({
-        where: { userId },
-      });
-    }
-    
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+
     logger.info('User logout successful', { userId, ip: req.ip });
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
