@@ -205,7 +205,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/taskdb
 # JWT
 JWT_ACCESS_SECRET=change-me-in-production
 JWT_REFRESH_SECRET=change-me-in-production
-JWT_ACCESS_EXPIRES_IN=15m
+JWT_ACCESS_EXPIRES_IN=24h
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Server

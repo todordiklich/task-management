@@ -2,7 +2,11 @@ import express from 'express';
 import { randomBytes } from 'crypto';
 import prisma from '../config/prisma.js';
 import { authenticate } from '../middleware/auth.js';
-import { createOrganizationSchema, inviteMemberSchema } from '../utils/validation.js';
+import {
+  createOrganizationSchema,
+  inviteMemberSchema,
+} from '../utils/validation.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -54,12 +58,12 @@ router.post('/', authenticate, async (req, res) => {
     // Validate request body
     const validationResult = createOrganizationSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid request data',
-        details: validationResult.error.issues.map(issue => ({
+        details: validationResult.error.issues.map((issue) => ({
           field: issue.path.join('.'),
-          message: issue.message
-        }))
+          message: issue.message,
+        })),
       });
     }
 
@@ -123,27 +127,55 @@ router.get('/', authenticate, async (req, res) => {
       include: {
         organization: true,
         role: true,
-        user: true,
-      },
-      orderBy: {
-        organization: {
-          createdAt: 'desc'
-        }
+        user: { select: { id: true, email: true, name: true } },
       },
     });
 
     // Transform the data to return organizations format
-    const organizations = userOrganizations.map(uo => ({
+    const organizations = userOrganizations.map((uo) => ({
       ...uo.organization,
       userRole: uo.role,
       user: uo.user,
       membershipId: uo.id,
-      joinedAt: uo.createdAt,
     }));
 
     res.json(organizations);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch organizations' });
+  }
+});
+
+/**
+ * @swagger
+ * /organizations/invitations:
+ *   get:
+ *     summary: List all invitations for the current user
+ *     tags: [Organizations]
+ *     responses:
+ *       200:
+ *         description: List of invitations
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/invitations', authenticate, async (req, res) => {
+  try {
+    const { email } = req.user;
+
+    const invitations = await prisma.invitation.findMany({
+      where: { email },
+      include: {
+        organization: true,
+        role: true,
+        inviter: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(invitations);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch invitations' });
   }
 });
 
@@ -188,16 +220,16 @@ router.get('/', authenticate, async (req, res) => {
 router.post('/:id/invite', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Validate request body
     const validationResult = inviteMemberSchema.safeParse(req.body);
     if (!validationResult.success) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid request data',
-        details: validationResult.error.issues.map(issue => ({
+        details: validationResult.error.issues.map((issue) => ({
           field: issue.path.join('.'),
-          message: issue.message
-        }))
+          message: issue.message,
+        })),
       });
     }
 
@@ -208,7 +240,7 @@ router.post('/:id/invite', authenticate, async (req, res) => {
     if (isNaN(organizationId)) {
       return res.status(400).json({ error: 'Invalid organization ID' });
     }
-    
+
     // Check if inviter is admin of the organization
     const inviterMembership = await prisma.userOrganization.findFirst({
       where: { userId: inviterId, organizationId, role: { name: 'admin' } },
@@ -348,12 +380,19 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
     const { token } = req.body;
 
     if (!token) {
-      return res.status(400).json({ error: 'Invalid request data', details: [{ field: 'token', message: 'Token is required' }] });
+      return res.status(400).json({
+        error: 'Invalid request data',
+        details: [{ field: 'token', message: 'Token is required' }],
+      });
     }
 
     const invitation = await prisma.invitation.findFirst({ where: { token } });
 
-    if (!invitation || invitation.status !== 'pending' || invitation.expiresAt < new Date()) {
+    if (
+      !invitation ||
+      invitation.status !== 'pending' ||
+      invitation.expiresAt < new Date()
+    ) {
       return res.status(404).json({ error: 'Invalid or expired invitation' });
     }
 
@@ -363,7 +402,9 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
     });
 
     if (currentUser?.email !== invitation.email) {
-      return res.status(403).json({ error: 'This invitation is not for your email' });
+      return res
+        .status(403)
+        .json({ error: 'This invitation is not for your email' });
     }
 
     const membership = await prisma.$transaction(async (tx) => {
@@ -374,7 +415,10 @@ router.post('/accept-invitation', authenticate, async (req, res) => {
           roleId: invitation.roleId,
         },
       });
-      await tx.invitation.update({ where: { id: invitation.id }, data: { status: 'accepted' } });
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'accepted' },
+      });
       return newMembership;
     });
 
@@ -417,7 +461,9 @@ router.get('/:id/members', authenticate, async (req, res) => {
     }
 
     // Check if organization exists
-    const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
     if (!org) {
       return res.status(404).json({ error: 'Organization not found' });
     }
